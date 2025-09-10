@@ -8,7 +8,7 @@ from fiftyone import ViewField as F
 dataset = foz.load_zoo_dataset(
     "open-images-v7",
     split="validation",
-    classes=["Door", "Door handle"],  # Only download images with these classes
+    classes=["Door"],  # Only download images with these classes
     max_samples=9999,  # Reduced since we're being more selective
     seed=51,
     shuffle=True,
@@ -17,7 +17,7 @@ dataset = foz.load_zoo_dataset(
 # First, get all images that have either doors or door handles
 view_with_both_labels = dataset.filter_labels(
     "detections",
-    F("label").is_in(["Door", "Door handle"]),
+    F("label").is_in(["Door"]),
     only_matches=True,
 )
 
