@@ -1,6 +1,6 @@
 task: detect
 mode: train
-model: yolov8s.pt
+model: yolov8n.pt
 data: /home/martin-barry/Desktop/HES-SO/VisionBridge/dataset/Doors_Merged/dataset.yaml
 epochs: 50
 time: null
@@ -13,7 +13,7 @@ cache: false
 device: '0'
 workers: 8
 project: runs/detect
-name: multi_dataset10
+name: multi_dataset3
 exist_ok: false
 pretrained: true
 optimizer: SGD
@@ -102,4 +102,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: botsort.yaml
-save_dir: runs/detect/multi_dataset10
+save_dir: runs/detect/multi_dataset3

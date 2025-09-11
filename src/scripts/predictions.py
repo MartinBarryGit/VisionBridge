@@ -17,8 +17,11 @@ test_images_dir = os.path.join(data_dir, 'VIDD/images/val')
 test_images_dir = os.path.join(data_dir, 'Doors_Merged/images/val')
 if os.path.exists(test_images_dir):
     # Get first few images from the dataset for testing
-    test_images = [f for f in os.listdir(test_images_dir) if f.endswith('.jpg')][:30]
-    
+    test_images = [f for f in os.listdir(test_images_dir) if f.endswith('.jpg')]
+    import random
+    random.shuffle(test_images)
+    test_images = test_images[:50]  # Limit to first 50 images for quick testing
+
     for img_name in test_images:
         img_path = os.path.join(test_images_dir, img_name)
         print(f"\nMaking prediction on: {img_name}")

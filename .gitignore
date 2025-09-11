@@ -10,3 +10,4 @@ wheels/
 # Virtual environments
 .venv
 dataset/*
+!src/scripts/runs/detect/multi_dataset/weights/best.pt
