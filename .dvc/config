@@ -1,0 +1,8 @@
+[core]
+    remote = icare_storage
+['remote "icare_storage"']
+    url = s3://dvc-data/vision-bridge
+    endpointurl = http://object-storage.icare.ch:9600
+    region = eu-west-3
+    use_ssl = false
+    ssl_verify = false
