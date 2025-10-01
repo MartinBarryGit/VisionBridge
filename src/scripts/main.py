@@ -1,5 +1,5 @@
-import os
 import glob
+import os
 import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -8,7 +8,7 @@ import yaml
 from ultralytics import YOLO
 
 from config import data_dir
-import glob
+
 # Configuration
 
 

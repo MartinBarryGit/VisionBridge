@@ -11,3 +11,8 @@ wheels/
 .venv
 dataset/*
 !src/scripts/runs/detect/multi_dataset/weights/best.pt
+src/scripts/runs/detect/multi_dataset/weights/best_saved_model
+/dataset
+
+# MacOS-generated files
+.DS_Store
