@@ -9,5 +9,6 @@ wheels/
 *.pt
 # Virtual environments
 .venv
+!dataset/.gitkeep
 dataset/*
 !src/scripts/runs/detect/multi_dataset/weights/best.pt
