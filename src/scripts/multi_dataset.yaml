@@ -6,7 +6,7 @@ model: 'pretrained.pt'  # or 'yolov8s.pt', 'yolov8m.pt', 'yolov8l.pt', 'yolov8x.
 
 # Training hyperparameters
 epochs: 50
-batch: 10
+batch: 32
 
 save_period: 10  # Save checkpoint every 10 epochs
 patience: 50     # Early stopping patience
