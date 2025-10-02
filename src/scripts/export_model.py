@@ -6,14 +6,14 @@ from config import parent_dir
 
 model_path = os.path.join(
     parent_dir,
-    "scripts/runs/detect/multi_dataset/weights/best.pt"
+    "runs/detect/multi_dataset/weights/best.pt"
 )
 model = YOLO(model_path)
 print(f"Modèle chargé depuis : {model_path}")
 
 export_dir = os.path.join(
     parent_dir,
-    "scripts/runs/detect/multi_dataset/weights"
+    "runs/detect/multi_dataset/weights"
 )
 
 tflite_float32 = model.export(

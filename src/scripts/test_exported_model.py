@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 parent_dir = "/Users/moreno/sources/VisionBridge/src"
-tflite_model_path = os.path.join(parent_dir, "scripts/runs/detect/multi_dataset/weights/best_float16.tflite")
+tflite_model_path = os.path.join(parent_dir, "runs/detect/multi_dataset/weights/best_float16.tflite")
 image_path = "pred.png"
 img_size = 640 
 conf_threshold = 0.25

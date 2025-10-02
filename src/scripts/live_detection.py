@@ -9,7 +9,7 @@ from config import parent_dir
 alpha = 0.2           
 iou_threshold = 0.5 
 max_missed_frames = 30
-model_path = os.path.join(parent_dir, "scripts/runs/detect/multi_dataset/weights/best.pt")
+model_path = os.path.join(parent_dir, "runs/detect/multi_dataset/weights/best.pt")
 
 class Track:
     def __init__(self, box, score):
