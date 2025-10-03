@@ -1,0 +1,6 @@
+outs:
+- md5: c3e29f1e7451233128488fa37177e9ce.dir
+  size: 109110248
+  nfiles: 29
+  hash: md5
+  path: multi_dataset_degree30

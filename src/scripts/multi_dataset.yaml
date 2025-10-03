@@ -6,7 +6,7 @@ model: 'pretrained.pt'  # or 'yolov8s.pt', 'yolov8m.pt', 'yolov8l.pt', 'yolov8x.
 
 # Training hyperparameters
 epochs: 50
-batch: 10
+batch: 32
 
 save_period: 10  # Save checkpoint every 10 epochs
 patience: 50     # Early stopping patience
@@ -14,7 +14,7 @@ workers: 8       # Number of dataloader workers
 device: 0        # GPU device (0 for first GPU, 'cpu' for CPU)
 
 # Optimizer settings
-optimizer: 'SGD'  # SGD, Adam, AdamW, NAdam, RAdam, RMSProp
+optimizer: 'AdamW'  # SGD, Adam, AdamW, NAdam, RAdam, RMSProp
 lr0: 0.01         # Initial learning rate
 lrf: 0.01         # Final learning rate (lr0 * lrf)
 momentum: 0.937   # SGD momentum/Adam beta1
@@ -32,15 +32,15 @@ dfl: 1.5          # DFL loss gain
 hsv_h: 0.015      # Image HSV-Hue augmentation (fraction)
 hsv_s: 0.7        # Image HSV-Saturation augmentation (fraction)
 hsv_v: 0.4        # Image HSV-Value augmentation (fraction)
-degrees: 90     # Image rotation (+/- deg)
+degrees: 30     # Image rotation (+/- deg)
 translate: 0.5    # Image translation (+/- fraction)
-scale: 2        # Image scale (+/- gain)
-shear: 50        # Image shear (+/- deg)
-perspective: .5  # Image perspective (+/- fraction)
+scale: 0.7        # Image scale (+/- gain)
+shear: 0        # Image shear (+/- deg)
+# perspective: .5  # Image perspective (+/- fraction)
 flipud: 0.1       # Image flip up-down (probability)
 fliplr: 0.5       # Image flip left-right (probability)
-mosaic: 1.0       # Image mosaic (probability)
-mixup: 0.0        # Image mixup (probability)
+mosaic: 0       # Image mosaic (probability)
+mixup: 0.1        # Image mixup (probability)
 copy_paste: 0.0   # Segment copy-paste (probability)
 
 # Advanced augmentation

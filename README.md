@@ -82,7 +82,7 @@ uv run python src/scripts/main.py
 - To add datasets: edit `DATASETS` in `src/scripts/main.py`
 - To control duplicates: adjust `DEDUPLICATE` and `REPORT_DUPLICATES` in `src/scripts/main.py`
 
-Training outputs and best weights are saved under Ultralytics runs, e.g. `src/scripts/runs/detect/.../weights/best.pt`.
+Training outputs and best weights are saved under Ultralytics runs, e.g. `src/runs/detect/.../weights/best.pt`.
 
 ## Predictions
 
@@ -93,7 +93,7 @@ uv run python src/scripts/predictions.py
 ```
 
 By default it:
-- Loads the latest fine-tuned weights from `scripts/runs/detect/multi_dataset/weights/best.pt`
+- Loads the latest fine-tuned weights from `runs/detect/multi_dataset/weights/best.pt`
 - Reads images from `dataset/Doors_Merged/images/val`
 - Displays detections and writes `pred.png`
 

@@ -10,4 +10,8 @@ wheels/
 # Virtual environments
 .venv
 dataset/*
-!src/scripts/runs/detect/multi_dataset/weights/best.pt
+/dataset
+!src/runs/detect/**/weights/best.pt
+
+# MacOS-generated files
+.DS_Store

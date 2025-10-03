@@ -3,10 +3,12 @@ Live Door Detection Script
 Uses pre-trained YOLO model for real-time door detection via webcam
 """
 
+import time
+
 import cv2
 import numpy as np
 from ultralytics import YOLO
-import time
+
 
 def main():
     # Load your pre-trained model

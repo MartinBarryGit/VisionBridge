@@ -1,5 +1,5 @@
-import os
 import glob
+import os
 import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -8,7 +8,7 @@ import yaml
 from ultralytics import YOLO
 
 from config import data_dir
-import glob
+
 # Configuration
 
 
@@ -60,7 +60,7 @@ def main():
     overrides = load_train_overrides(TRAIN_CFG_PATH)
     # Ensure a reasonable default if no cfg
     overrides.setdefault("epochs", 50)
-    overrides.setdefault("batch", 16)
+    overrides.setdefault("batch", 32)
     overrides.setdefault("device", 0)
     # Always set data to our merged dataset
     overrides["data"] = str(merged_yaml)

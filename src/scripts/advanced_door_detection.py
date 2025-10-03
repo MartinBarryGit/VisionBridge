@@ -3,12 +3,14 @@ Advanced Live Door Detection Script
 Enhanced version with video file support, detection statistics, and more features
 """
 
+import argparse
+import os
+import time
+
 import cv2
 import numpy as np
 from ultralytics import YOLO
-import time
-import argparse
-import os
+
 
 class DoorDetector:
     def __init__(self, model_path, conf_threshold=0.3, iou_threshold=0.5):
@@ -222,7 +224,7 @@ def main():
     source = int(args.source) if args.source.isdigit() else args.source
     
     # Model path
-    model_path = "/Users/barry/Desktop/HES-SO/VisionBridge/src/scripts/runs/detect/multi_dataset/weights/best.pt"
+    model_path = "/Users/barry/Desktop/HES-SO/VisionBridge/src/runs/detect/multi_dataset/weights/best.pt"
     
     # Create detector
     try:

@@ -1,13 +1,16 @@
 
-from ultralytics import YOLO
 import os
-from config import parent_dir, data_dir
+
 import cv2
 import numpy as np
+from ultralytics import YOLO
+
+from config import data_dir, parent_dir
+
 # Load the fine-tuned model for prediction
-model_path = os.path.join(parent_dir, "scripts/runs/detect/multi_dataset/weights", 'best.pt')
+model_path = os.path.join(parent_dir, "runs/detect/multi_dataset/weights", 'best.pt')
 # model_path = "pretrained.pt"
-# model_path = os.path.join(parent_dir, "scripts/runs/detect/door_detection/weights", 'best.pt')
+# model_path = os.path.join(parent_dir, "runs/detect/door_detection/weights", 'best.pt')
 
 finetuned_model = YOLO(model_path)
 
