@@ -28,7 +28,6 @@ class Track:
     def is_active(self):
         return self.missed < max_missed_frames
 
-
 def iou(box1, box2):
     x1, y1, x2, y2 = box1
     x1b, y1b, x2b, y2b = box2
@@ -47,7 +46,7 @@ def iou(box1, box2):
 
 tracks = []
 
-def smooth_with_tracking(new_boxes, conf_threshold=0.3):
+def smooth_with_tracking(new_boxes, conf_threshold=0.7):
     global tracks
     updated_tracks = [False] * len(tracks)
     used_track_indices = set()
@@ -85,7 +84,7 @@ def smooth_with_tracking(new_boxes, conf_threshold=0.3):
 def main():
     model = YOLO(model_path)
 
-    cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+    cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():
         print("Impossible d'ouvrir la webcam")
@@ -110,6 +109,7 @@ def main():
             cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(annotated_frame, f"door {score:.2f}", (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            
 
         cv2.imshow("YOLOv8 Live Detection (EMA + IoU + Tracking)", annotated_frame)
 
