@@ -1,11 +1,15 @@
 *
-# Virtual environments
+!*/
 !.gitignore
-!**/*.py
-!**/*.kt
-!**/*.sh
 !pyproject.toml
-!**/README.md
-!**/src/runs/detect/**/weights/best.pt
+!pred.png
+!uv.lock
+!README.md
+# Virtual environments
+
+!*.py
+!*.kt
+!*.sh
+!src/runs/detect/**/weights/best.pt
 !kotlin/assets/best.onnx
 # MacOS-generated files
