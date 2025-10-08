@@ -9,6 +9,7 @@
 
 !*.py
 !*.kt
+!*.kts
 !*.sh
 !src/runs/detect/**/weights/best.pt
 !kotlin/assets/best.onnx
