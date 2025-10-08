@@ -1,17 +1,11 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-*.weights
-*.pt
+*
 # Virtual environments
-.venv
-dataset/*
-/dataset
-!src/runs/detect/**/weights/best.pt
-
+!.gitignore
+!**/*.py
+!**/*.kt
+!**/*.sh
+!pyproject.toml
+!**/README.md
+!**/src/runs/detect/**/weights/best.pt
+!kotlin/assets/best.onnx
 # MacOS-generated files
-.DS_Store
