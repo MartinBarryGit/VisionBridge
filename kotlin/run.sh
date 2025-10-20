@@ -37,21 +37,59 @@ else
     echo "✅ OpenCV JAR found"
 fi
 
+# Detect OS and architecture
+OS_NAME=$(uname -s)
+ARCH=$(uname -m)
+
+echo "🔍 Detected OS: $OS_NAME, Architecture: $ARCH"
+
+# Set platform-specific paths
+case "$OS_NAME" in
+    "Darwin")
+        if [ "$ARCH" = "arm64" ]; then
+            OPENCV_PLATFORM_PATH="nu/pattern/opencv/osx/ARMv8"
+            SYSTEM_LIB_PATH="/opt/homebrew/lib"
+        else
+            OPENCV_PLATFORM_PATH="nu/pattern/opencv/osx/x86_64"
+            SYSTEM_LIB_PATH="/usr/local/lib"
+        fi
+        ;;
+    "Linux")
+        OPENCV_PLATFORM_PATH="nu/pattern/opencv/linux/x86_64"
+        SYSTEM_LIB_PATH="/usr/lib/x86_64-linux-gnu"
+        ;;
+    *)
+        echo "❌ Unsupported OS: $OS_NAME"
+        exit 1
+        ;;
+esac
+
 # Extract OpenCV native library
 OPENCV_NATIVES_DIR="opencv-natives"
 if [ ! -d "$OPENCV_NATIVES_DIR" ]; then
-    echo "📦 Extracting OpenCV native libraries..."
+    echo "📦 Extracting OpenCV native libraries for $OS_NAME..."
     mkdir -p "$OPENCV_NATIVES_DIR"
-    unzip -q "$OPENCV_JAR" "nu/pattern/opencv/linux/x86_64/*" -d "$OPENCV_NATIVES_DIR" 2>/dev/null || true
-    echo "✅ Extracted OpenCV natives"
+    
+    echo "� Extracting from: $OPENCV_PLATFORM_PATH/*"
+    unzip -q "$OPENCV_JAR" "$OPENCV_PLATFORM_PATH/*" -d "$OPENCV_NATIVES_DIR"
+    
+    if [ "$(ls -A $OPENCV_NATIVES_DIR 2>/dev/null)" ]; then
+        echo "✅ Extracted OpenCV natives"
+    else
+        echo "❌ Failed to extract native libraries"
+        exit 1
+    fi
 fi
 
 # Find the native library path
-NATIVE_LIB_PATH="$OPENCV_NATIVES_DIR/nu/pattern/opencv/linux/x86_64"
+NATIVE_LIB_PATH="$OPENCV_NATIVES_DIR/$OPENCV_PLATFORM_PATH"
+
 if [ ! -d "$NATIVE_LIB_PATH" ]; then
-    echo "⚠️  OpenCV native library not found, trying to use system OpenCV..."
-    NATIVE_LIB_PATH="/usr/lib/x86_64-linux-gnu"
+    echo "❌ Native library path not found: $NATIVE_LIB_PATH"
+    exit 1
 fi
+
+echo "✅ Using native library path: $NATIVE_LIB_PATH"
 
 # Check model
 if [ ! -f "assets/best.onnx" ]; then
@@ -78,7 +116,22 @@ echo ""
 echo "🚀 Running live detection..."
 echo "   Press 'q' in the window to quit"
 echo ""
-java -cp "door_detection.jar:$ONNX_JAR:$OPENCV_JAR" -Djava.library.path="$NATIVE_LIB_PATH" Door_detection_functionsKt
+
+# Add native access flag for newer Java versions and better library path handling
+JAVA_OPTS="--enable-native-access=ALL-UNNAMED -Djava.library.path=$NATIVE_LIB_PATH"
+
+# For macOS, also try common OpenCV installation paths
+if [ "$OS_NAME" = "Darwin" ]; then
+    if [ -d "/opt/homebrew/lib" ]; then
+        JAVA_OPTS="$JAVA_OPTS:/opt/homebrew/lib"
+    fi
+    if [ -d "/usr/local/lib" ]; then
+        JAVA_OPTS="$JAVA_OPTS:/usr/local/lib"
+    fi
+fi
+
+echo "Using library path: $NATIVE_LIB_PATH"
+java -cp "door_detection.jar:$ONNX_JAR:$OPENCV_JAR" $JAVA_OPTS Door_detection_functionsKt
 
 echo ""
 echo "✅ Done!"

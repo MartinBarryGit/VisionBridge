@@ -206,8 +206,8 @@ fun boxSoundDetection(frame: BufferedImage, model: YoloModel): BufferedImage {
 
 // Live detection (like Python live_detection)
 fun liveDetection() {
-    System.loadLibrary(Core.NATIVE_LIBRARY_NAME)
-    
+    // System.loadLibrary(Core.NATIVE_LIBRARY_NAME)
+    nu.pattern.OpenCV.loadShared()
     val modelPath = "assets/best.onnx"
     if (!File(modelPath).exists()) {
         println("Model not found: $modelPath")
