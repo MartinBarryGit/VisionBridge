@@ -16,13 +16,25 @@ import org.opencv.imgproc.Imgproc
 import org.opencv.videoio.VideoCapture
 import org.opencv.videoio.Videoio
 import org.opencv.highgui.HighGui
-
+import com.fasterxml.jackson.annotation.JsonProperty
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
 // Global configuration
 const val ALPHA = 0.2f
 const val IOU_THRESHOLD = 0.5f
 const val MAX_MISSED_FRAMES = 30
 const val INPUT_SIZE = 640
+data class YoloResponse(
+    @JsonProperty("annotated")
+    @field:NotNull
+    val annotated: BufferedImage,
+    
+    @JsonProperty("position")
+    @field:NotNull
+    val position: Array<Float>,
+    
 
+)
 class Track(var box: FloatArray, var score: Float) {
     var missed = 0
     
@@ -174,13 +186,14 @@ class YoloModel(modelPath: String) {
 }
 
 // Main detection loop (like Python box_sound_detection)
-fun boxSoundDetection(frame: BufferedImage, model: YoloModel): BufferedImage {
+fun boxSoundDetection(frame: BufferedImage, model: YoloModel): YoloResponse {
     val boxes = model.predict(frame)
     val (smoothedBoxes, smoothedScores) = smoothWithTracking(boxes)
     
     // Draw boxes
     val annotated = BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB)
     val g = annotated.createGraphics()
+    var door_position = Array<Float>(2) { 0f }
     g.drawImage(frame, 0, 0, null)
     g.stroke = BasicStroke(2f)
     g.font = Font("Arial", Font.BOLD, 16)
@@ -196,12 +209,15 @@ fun boxSoundDetection(frame: BufferedImage, model: YoloModel): BufferedImage {
         if (doorN == 0) {
             val boxCenter = ((x1 + x2) / 2).toInt()
             val imageCenter = frame.width / 2
+            door_position = Array(2) { 0f }
+            door_position[0] = boxCenter.toFloat()
+            door_position[1] = imageCenter.toFloat()
             // TODO: compute_directional_sound(imageCenter, 0, boxCenter)
         }
     }
     
     g.dispose()
-    return annotated
+    return YoloResponse(annotated, position = door_position)
 }
 
 // Live detection (like Python live_detection)
@@ -236,8 +252,9 @@ fun liveDetection() {
         val bufferedImage = matToBufferedImage(frame)
         
         // Run detection
-        val annotated = boxSoundDetection(bufferedImage, model)
-        
+        val yoloResponse = boxSoundDetection(bufferedImage, model)
+        val annotated = yoloResponse.annotated
+        val doorPosition = yoloResponse.position
         // Convert back to Mat and show
         val annotatedMat = bufferedImageToMat(annotated)
         HighGui.imshow("YOLOv8 Live Detection (EMA + IoU + Tracking)", annotatedMat)
