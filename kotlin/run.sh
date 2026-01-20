@@ -102,7 +102,7 @@ fi
 # Compile
 echo ""
 echo "🔨 Compiling Kotlin code..."
-kotlinc -cp "$ONNX_JAR:$OPENCV_JAR" utils/door_detection_functions.kt -include-runtime -d door_detection.jar
+kotlinc -cp "$ONNX_JAR:$OPENCV_JAR" utils/DoorDetectionFunctions.kt -include-runtime -d door_detection.jar
 
 if [ $? -eq 0 ]; then
     echo "✅ Compilation successful"
@@ -131,7 +131,7 @@ if [ "$OS_NAME" = "Darwin" ]; then
 fi
 
 echo "Using library path: $NATIVE_LIB_PATH"
-java -cp "door_detection.jar:$ONNX_JAR:$OPENCV_JAR" $JAVA_OPTS Door_detection_functionsKt
+java -cp "door_detection.jar:$ONNX_JAR:$OPENCV_JAR" $JAVA_OPTS DoorDetectionFunctionsKt
 
 echo ""
 echo "✅ Done!"
