@@ -79,7 +79,7 @@ def smooth_with_tracking(new_boxes, conf_threshold=0.7):
 
     return [t.box for t in tracks], [t.score for t in tracks]
 def box_sound_detection(frame, model, player):
-    results = model(frame, verbose=False)
+    results = model.track(frame)
     boxes = results[0].boxes
 
     smoothed_boxes, smoothed_scores = smooth_with_tracking(boxes)

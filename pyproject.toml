@@ -11,6 +11,7 @@ dependencies = [
     "fastapi>=0.118.0",
     "fiftyone>=1.7.2",
     "langchain-openai>=0.3.34",
+    "lap>=0.5.12",
     "librosa>=0.11.0",
     "numpy>=2.3.2",
     "onnx>=1.19.0",
