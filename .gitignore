@@ -13,4 +13,8 @@
 !*.sh
 !src/runs/detect/**/weights/best.pt
 !kotlin/assets/best.onnx
-# MacOS-generated files
+
+.venv
+!dataset/.gitkeep
+dataset/*
+!src/scripts/runs/detect/multi_dataset/weights/best.pt
