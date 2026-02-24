@@ -8,6 +8,7 @@
 # Virtual environments
 
 !*.py
+!*.yaml
 !*.kt
 !*.kts
 !*.sh
