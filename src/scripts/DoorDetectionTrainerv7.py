@@ -215,7 +215,7 @@ def load_train_overrides(cfg_path: Path) -> Dict:
     return overrides
 
 
-def main():
+def main(dst_root: Optional[Path] = None) -> None:
     dst_root = Path(data_dir) / DATASET
     dst_root.mkdir(parents=True, exist_ok=True)
 
@@ -242,4 +242,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    ds_root = "/home/martin.barry/datasets/door_open_images"
+    main(dst_root=Path(ds_root))
