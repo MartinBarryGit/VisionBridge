@@ -10,7 +10,7 @@ import time
 
 def main():
     # Load your pre-trained model
-    model_path = "/Users/barry/Desktop/HES-SO/VisionBridge/src/scripts/runs/detect/multi_dataset/weights/best.pt"
+    model_path = "/Users/barry/Desktop/HES-SO/VisionBridge/src/scripts/runs/detect/train/weights/best.pt"
     
     print(f"Loading model from: {model_path}")
     try:
