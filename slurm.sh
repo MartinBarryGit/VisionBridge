@@ -30,4 +30,4 @@ ulimit -n 65535
 
   
 
-apptainer exec --nv --bind /home/martin.barry/datasets/data:/home/martin.barry/projects/VisionBridge/data/ /home/martin.barry/datasets/visionbridge.sif python src/scripts/DoorDetectionTrainerv7.py
+apptainer exec --nv --bind /home/martin.barry/datasets/door_open_images:/home/martin.barry/projects/VisionBridge/door_open_images/ /home/martin.barry/datasets/visionbridge.sif python src/scripts/DoorDetectionTrainerv7.py
