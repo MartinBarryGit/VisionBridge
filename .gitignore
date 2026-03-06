@@ -6,7 +6,7 @@
 !uv.lock
 !README.md
 # Virtual environments
-
+!*.def
 !*.py
 !*.yaml
 !*.kt
