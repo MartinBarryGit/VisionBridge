@@ -12,7 +12,7 @@
 
 #SBATCH --mem-per-cpu=16G # memory per cpu-core (4G per cpu-core is default)
 
-#SBATCH --time=1:00:00 # total run time limit (HH:MM:SS)
+#SBATCH --time=12:00:00 # total run time limit (HH:MM:SS)
 
 #SBATCH --gres=gpu:1 # number of gpus per node
 
@@ -30,4 +30,4 @@ ulimit -n 65535
 
   
 
-apptainer exec --nv --bind /home/martin.barry/datasets/door_open_images:/home/martin.barry/projects/VisionBridge/door_open_images/ /home/martin.barry/datasets/visionbridge.sif python src/scripts/DoorDetectionTrainerv7.py
+apptainer exec --nv --bind /home/martin.barry/datasets/:/home/martin.barry/projects/VisionBridge/largefiles/ /home/martin.barry/datasets/visionbridge.sif python -m src.scripts.DoorDetectionTrainerv7

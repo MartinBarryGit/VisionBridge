@@ -5,20 +5,22 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import torch
 import yaml
-from ultralytics import YOLO
+from ultralytics import YOLO, settings
 
-from config import data_dir
+from src.config import data_dir
 
 # Configuration
 
 
 DATASET = "Doors_OpenImages"
 # Base model to fine-tune (Ultralytics hub weights or local .pt)
-BASE_MODEL = os.environ.get("YOLO_BASE", "yolov8n.pt")
 # If provided, use training overrides from this yaml (ultralytics training args)
 TRAIN_CFG_PATH = Path(__file__).with_name("multi_dataset.yaml")
 DOOR_CLASS = os.environ.get("OI_DOOR_CLASS", "Door")
 OPEN_IMAGES_SPLIT = os.environ.get("OI_SPLIT", "train")
+MODELS_DIR =  "/home/martin.barry/projects/VisionBridge/largefiles/models"
+RUNS_DIR = "/home/martin.barry/projects/VisionBridge/largefiles/runs"
+OPEN_IMAGES_DIR = Path("/home/martin.barry/projects/VisionBridge/largefiles/door_open_images/")
 POSITIVE_MAX = int(os.environ.get("OI_POSITIVE_MAX", "0"))  # 0 = all available
 NEGATIVE_TARGET = int(os.environ.get("OI_NEGATIVE_TARGET", "0"))  # 0 = auto-ratio
 NEGATIVE_RATIO = float(os.environ.get("OI_NEGATIVE_RATIO", "0.5"))
@@ -37,6 +39,7 @@ def _print_openimages_hint() -> None:
               - OI_NEGATIVE_TARGET (default 0 = auto from OI_NEGATIVE_RATIO)
               - OI_NEGATIVE_RATIO (default 0.5)
               - OI_SPLIT (default train)
+                            - OI_DATASET_DIR (default FiftyOne cache dir)
             """
         ).strip()
     )
@@ -79,13 +82,21 @@ def _collect_open_images_samples(
     door_class: str,
     positive_max: int,
     seed: int,
+    dataset_dir: Optional[Path] = None,
 ) -> Dict[str, List[Dict]]:
     try:
+        import fiftyone as fo
         import fiftyone.zoo as foz
     except ImportError as exc:
         raise RuntimeError(
             "fiftyone is required to download Open Images. Install with `pip install fiftyone`."
         ) from exc
+    print("Collecting Open Images samples with FiftyOne...")
+    if dataset_dir is not None:
+        print(f"Using custom dataset directory for FiftyOne: {dataset_dir}")
+        dataset_dir.mkdir(parents=True, exist_ok=True)
+        os.environ["FIFTYONE_DATASET_ZOO_DIR"] = str(dataset_dir)
+        fo.config.dataset_zoo_dir = str(dataset_dir)
 
     positive_kwargs = {
         "split": split,
@@ -97,9 +108,12 @@ def _collect_open_images_samples(
     }
     if positive_max > 0:
         positive_kwargs["max_samples"] = positive_max
+    # if dataset_dir is not None:
+    #     positive_kwargs["dataset_dir"] = str(dataset_dir)
 
+    target_dir = str(dataset_dir) if dataset_dir is not None else "FiftyOne default"
     print(
-        f"Downloading positives from Open Images split='{split}' for class '{door_class}'..."
+        f"Downloading positives from Open Images split='{split}' for class '{door_class}' to '{target_dir}'..."
     )
     positives_ds = foz.load_zoo_dataset("open-images-v7", **positive_kwargs)
 
@@ -114,15 +128,18 @@ def _collect_open_images_samples(
         positives.append({"filepath": sample_path, "boxes": boxes})
 
     print("Downloading candidates for negatives (images without Door labels)...")
-    negatives_candidates_ds = foz.load_zoo_dataset(
-        "open-images-v7",
-        split=split,
-        label_types=["detections"],
-        classes=[door_class],
-        only_matching=False,
-        shuffle=True,
-        seed=seed,
-    )
+    negative_kwargs = {
+        "split": split,
+        "label_types": ["detections"],
+        "classes": [door_class],
+        "only_matching": False,
+        "shuffle": True,
+        "seed": seed,
+    }
+    # if dataset_dir is not None:
+    #     negative_kwargs["dataset_dir"] = str(dataset_dir)
+
+    negatives_candidates_ds = foz.load_zoo_dataset("open-images-v7", **negative_kwargs)
 
     negatives: List[Dict] = []
     for sample in negatives_candidates_ds.iter_samples(progress=True):
@@ -140,12 +157,14 @@ def _collect_open_images_samples(
 def build_openimages_yolo_dataset(dst_root: Path) -> Path:
     random.seed(SEED)
     _print_openimages_hint()
-
+    dataset_dir = Path(OPEN_IMAGES_DIR)
+    print(f"Using dataset directory: {dataset_dir if dataset_dir else 'FiftyOne default'}")
     samples = _collect_open_images_samples(
         split=OPEN_IMAGES_SPLIT,
         door_class=DOOR_CLASS,
         positive_max=POSITIVE_MAX,
         seed=SEED,
+        dataset_dir=dataset_dir,
     )
     positives = samples["positives"]
     negatives = samples["negatives"]
@@ -208,7 +227,8 @@ def load_train_overrides(cfg_path: Path) -> Dict:
         return {}
     with open(cfg_path, "r") as f:
         overrides = yaml.safe_load(f) or {}
-    # Remove model if present; we'll control it via BASE_MODEL
+
+    # model is loaded explicitly in main()
     overrides.pop("model", None)
     # data will be set dynamically
     overrides.pop("data", None)
@@ -221,17 +241,26 @@ def main(dst_root: Optional[Path] = None) -> None:
 
     merged_yaml = build_openimages_yolo_dataset(dst_root)
     print(f"Data YAML: {merged_yaml}")
-
-    # Train YOLOv8
-    print(f"Starting YOLOv8 fine-tuning from {BASE_MODEL}...")
-    model = YOLO(BASE_MODEL)
     overrides = load_train_overrides(TRAIN_CFG_PATH)
+    model_name = "yolov8m.pt"
+    model_path = Path(model_name)
+    if not model_path.is_absolute():
+        model_path = Path(MODELS_DIR) / model_name
+    Path(RUNS_DIR).mkdir(parents=True, exist_ok=True)
+    Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
+    settings.update({"weights_dir": MODELS_DIR})
+    if not model_path.exists():
+        model_path = Path(model_name)
+    # Train YOLOv8
+    print(f"Starting YOLOv8 fine-tuning from {model_path}...")
+    model = YOLO(str(model_path))
+    
     # Ensure a reasonable default if no cfg
-    overrides.setdefault("epochs", 50)
-    overrides.setdefault("batch", 32)
+    
     overrides.setdefault("device", "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     # Always set data to our merged dataset
     overrides["data"] = str(merged_yaml)
+    overrides["project"] = RUNS_DIR
 
     model.train(**overrides)
     print("Training complete.")
@@ -242,5 +271,4 @@ def main(dst_root: Optional[Path] = None) -> None:
 
 
 if __name__ == "__main__":
-    ds_root = "/home/martin.barry/datasets/door_open_images"
-    main(dst_root=Path(ds_root))
+    main()
