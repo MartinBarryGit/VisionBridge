@@ -4,11 +4,9 @@ Enhanced version with video file support, detection statistics, and more feature
 """
 
 import cv2
-import numpy as np
 from ultralytics import YOLO
 import time
 import argparse
-import os
 
 class DoorDetector:
     def __init__(self, model_path, conf_threshold=0.3, iou_threshold=0.5):

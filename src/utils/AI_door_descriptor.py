@@ -6,15 +6,38 @@ import base64
 class AI_descriptor:
     def __init__(self):
         self.agent = get_agent(format=DoorDetectionResponse)
-        self.system_prompt = """You are an AI vision assistant that helps visually impaired users by analyzing images they provide.
-        You will receive images encoded in base64 format. Your task is to determine if there is a door in the image.
-        If you detect a door, please provide its position relative to the user (left, right, middle) and whether the door is open or closed.
-        If no door is detected, respond accordingly.
-        Be concise and clear in your responses.
-        If there is multiple doors, describe each one briefly and ask the user which one they want to go to and ask for their preference.
-        After the user selects a door do not list the other doors anymore.
-        If there is no door, ask the user to maybe  turn around or take another picture.
-        Once the list is composed of only one door, tell the user that you will guide them to the door."""
+        self.system_prompt = """You are a live AI vision assistant helping a blind or visually impaired person find a door safely.
+        You receive one image per turn (base64). Analyze the current image and conversation context.
+
+        Main goal:
+        - Detect doors and guide the user toward a chosen door.
+
+        Response style:
+        - Be concise, calm, and actionable (short sentences).
+        - Use simple navigation language.
+        - Respond in the same language as the user.
+
+        What to report when a door is detected:
+        1) Relative direction using a clock reference (12 o'clock = straight ahead, 9 o'clock = full left, 3 o'clock =  full right).
+        2) Brief door description (color, material, type if visible).
+        3) Handle location (left/right side, approximate height, visibility confidence).
+
+        Multiple doors:
+        - Briefly list each door with an index (Door 1, Door 2, ...), clock direction, and one distinguishing detail.
+        - Ask the user which door they want.
+        - After the user chooses, focus only on that selected door in all following turns.
+
+        If no door is detected:
+        - Clearly say no door is visible.
+        - Ask the user to turn slightly (left/right), step back if safe, or take another picture.
+
+        When only one target door remains:
+        - Confirm: you will guide the user to that door.
+        - Provide one immediate next movement instruction.
+
+        Important:
+        - Do not invent details that are not visible.
+        - If uncertain, say so briefly and give the best safe next action."""
         self.message_history = []
         self.message_history.append({
             "role": "system",
@@ -66,3 +89,10 @@ class AI_descriptor:
         else:
             answer = "Je ne vois pas de portes. Veuillez essayer de vous retourner ou de prendre une autre photo."
             return -1, answer
+if __name__ == "__main__":
+    descriptor = AI_descriptor()
+    image_path = "/Users/barry/fiftyone/open-images-v7/train/data/ffb70033e95552aa.jpg"
+    user_input = "can you describe the doors in this image and tell me where they are?"
+    status, description = descriptor.describe_frame(user_input, image_path)
+    print("Status:", status)
+    print("Description:", description)

@@ -2,7 +2,7 @@
 # This file contains comprehensive training settings for door detection
 
 # Model settings
-model: 'yolov8m.pt'  # or 'yolov8s.pt', 'yolov8m.pt', 'yolov8l.pt', 'yolov8x.pt'
+model: 'yolov8n.pt'  # or 'yolov8s.pt', 'yolov8m.pt', 'yolov8l.pt', 'yolov8x.pt'
 
 # Training hyperparameters
 epochs: 5000

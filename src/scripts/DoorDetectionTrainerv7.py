@@ -2,7 +2,7 @@ import os
 import random
 import textwrap
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import torch
 import yaml
 from ultralytics import YOLO
@@ -18,6 +18,8 @@ BASE_MODEL = os.environ.get("YOLO_BASE", "yolov8n.pt")
 # If provided, use training overrides from this yaml (ultralytics training args)
 TRAIN_CFG_PATH = Path(__file__).with_name("multi_dataset.yaml")
 DOOR_CLASS = os.environ.get("OI_DOOR_CLASS", "Door")
+OI_CLASSES = os.environ.get("OI_CLASSES", f"{DOOR_CLASS},Door handle")
+TARGET_CLASSES = list(dict.fromkeys([name.strip() for name in OI_CLASSES.split(",") if name.strip()]))
 OPEN_IMAGES_SPLIT = os.environ.get("OI_SPLIT", "train")
 POSITIVE_MAX = int(os.environ.get("OI_POSITIVE_MAX", "0"))  # 0 = all available
 NEGATIVE_TARGET = int(os.environ.get("OI_NEGATIVE_TARGET", "0"))  # 0 = auto-ratio
@@ -33,7 +35,9 @@ def _print_openimages_hint() -> None:
             This script downloads Open Images through FiftyOne dataset zoo.
             Docs: https://storage.googleapis.com/openimages/web/index.html
             You can control size with env vars:
-              - OI_POSITIVE_MAX (default 0 = all positives with Door label)
+                            - OI_CLASSES (default "Door,Door handle")
+                            - OI_DOOR_CLASS (legacy single-class fallback)
+              - OI_POSITIVE_MAX (default 0 = all positives with target class labels)
               - OI_NEGATIVE_TARGET (default 0 = auto from OI_NEGATIVE_RATIO)
               - OI_NEGATIVE_RATIO (default 0.5)
               - OI_SPLIT (default train)
@@ -55,28 +59,32 @@ def _normalize_box_xywh_to_yolo(bbox_xywh: List[float]) -> List[float]:
     return [x_center, y_center, w, h]
 
 
-def _write_label_file(label_path: Path, boxes: List[List[float]]) -> None:
+def _write_label_file(label_path: Path, detections: List[Tuple[int, List[float]]]) -> None:
     label_path.parent.mkdir(parents=True, exist_ok=True)
     with label_path.open("w") as f:
-        for box in boxes:
+        for class_idx, box in detections:
             x_center, y_center, w, h = _normalize_box_xywh_to_yolo(box)
-            f.write(f"0 {x_center:.6f} {y_center:.6f} {w:.6f} {h:.6f}\n")
+            f.write(f"{class_idx} {x_center:.6f} {y_center:.6f} {w:.6f} {h:.6f}\n")
 
 
-def _find_door_boxes(sample, door_class: str) -> List[List[float]]:
+def _find_target_boxes(sample, class_to_idx: Dict[str, int]) -> List[Tuple[int, List[float]]]:
     possible_fields = ("ground_truth", "detections")
     for field in possible_fields:
         labels = sample[field]
         if labels is None:
             continue
         detections = getattr(labels, "detections", []) or []
-        return [det.bounding_box for det in detections if det.label == door_class]
+        return [
+            (class_to_idx[det.label], det.bounding_box)
+            for det in detections
+            if det.label in class_to_idx
+        ]
     return []
 
 
 def _collect_open_images_samples(
     split: str,
-    door_class: str,
+    target_classes: List[str],
     positive_max: int,
     seed: int,
 ) -> Dict[str, List[Dict]]:
@@ -87,10 +95,12 @@ def _collect_open_images_samples(
             "fiftyone is required to download Open Images. Install with `pip install fiftyone`."
         ) from exc
 
+    class_to_idx = {name: idx for idx, name in enumerate(target_classes)}
+
     positive_kwargs = {
         "split": split,
         "label_types": ["detections"],
-        "classes": [door_class],
+        "classes": target_classes,
         "only_matching": True,
         "shuffle": True,
         "seed": seed,
@@ -99,26 +109,26 @@ def _collect_open_images_samples(
         positive_kwargs["max_samples"] = positive_max
 
     print(
-        f"Downloading positives from Open Images split='{split}' for class '{door_class}'..."
+        f"Downloading positives from Open Images split='{split}' for classes {target_classes}..."
     )
     positives_ds = foz.load_zoo_dataset("open-images-v7", **positive_kwargs)
 
     positives: List[Dict] = []
     positive_paths = set()
     for sample in positives_ds.iter_samples(progress=True):
-        boxes = _find_door_boxes(sample, door_class)
+        boxes = _find_target_boxes(sample, class_to_idx)
         if not boxes:
             continue
         sample_path = str(Path(sample.filepath).resolve())
         positive_paths.add(sample_path)
         positives.append({"filepath": sample_path, "boxes": boxes})
 
-    print("Downloading candidates for negatives (images without Door labels)...")
+    print(f"Downloading candidates for negatives (images without {target_classes} labels)...")
     negatives_candidates_ds = foz.load_zoo_dataset(
         "open-images-v7",
         split=split,
         label_types=["detections"],
-        classes=[door_class],
+        classes=target_classes,
         only_matching=False,
         shuffle=True,
         seed=seed,
@@ -129,7 +139,7 @@ def _collect_open_images_samples(
         sample_path = str(Path(sample.filepath).resolve())
         if sample_path in positive_paths:
             continue
-        boxes = _find_door_boxes(sample, door_class)
+        boxes = _find_target_boxes(sample, class_to_idx)
         if boxes:
             continue
         negatives.append({"filepath": sample_path, "boxes": []})
@@ -141,9 +151,12 @@ def build_openimages_yolo_dataset(dst_root: Path) -> Path:
     random.seed(SEED)
     _print_openimages_hint()
 
+    if not TARGET_CLASSES:
+        raise RuntimeError("OI_CLASSES is empty. Provide at least one class name.")
+
     samples = _collect_open_images_samples(
         split=OPEN_IMAGES_SPLIT,
-        door_class=DOOR_CLASS,
+        target_classes=TARGET_CLASSES,
         positive_max=POSITIVE_MAX,
         seed=SEED,
     )
@@ -152,8 +165,8 @@ def build_openimages_yolo_dataset(dst_root: Path) -> Path:
 
     if not positives:
         raise RuntimeError(
-            "No positive Door samples found in Open Images. "
-            "Check OI_DOOR_CLASS/OI_SPLIT settings."
+            f"No positive samples found in Open Images for {TARGET_CLASSES}. "
+            "Check OI_CLASSES/OI_SPLIT settings."
         )
 
     if NEGATIVE_TARGET > 0:
@@ -183,19 +196,19 @@ def build_openimages_yolo_dataset(dst_root: Path) -> Path:
         f"positives={len(positives)} negatives={len(negatives)} "
         f"train={len(train_samples)} val={len(val_samples)}"
     )
-    return write_merged_yaml(dst_root)
+    return write_merged_yaml(dst_root, TARGET_CLASSES)
 
 
 
 
 
-def write_merged_yaml(dst_root: Path) -> Path:
+def write_merged_yaml(dst_root: Path, class_names: List[str]) -> Path:
     cfg = {
         "path": str(dst_root.resolve()),
         "train": "images/train",
         "val": "images/val",
-        "nc": 1,
-        "names": {0: "Door"},
+        "nc": len(class_names),
+        "names": {idx: name for idx, name in enumerate(class_names)},
     }
     yml = dst_root / "dataset.yaml"
     with open(yml, "w") as f:
