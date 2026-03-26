@@ -12,7 +12,7 @@
 !*.kt
 !*.kts
 !*.sh
-!src/runs/detect/**/weights/best.pt
+!*/**/best.pt
 !kotlin/assets/best.onnx
 
 .venv
