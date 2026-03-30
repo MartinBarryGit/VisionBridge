@@ -2,10 +2,13 @@ import os
 import random
 import textwrap
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import torch
 import yaml
 from ultralytics import YOLO, settings
+from ultralytics.nn.tasks import DetectionModel
+from ultralytics.utils.loss import E2ELoss, v8DetectionLoss
+from ultralytics.utils.tal import make_anchors
 
 from src.config import data_dir
 
@@ -28,6 +31,109 @@ NEGATIVE_TARGET = int(os.environ.get("OI_NEGATIVE_TARGET", "0"))  # 0 = auto-rat
 NEGATIVE_RATIO = float(os.environ.get("OI_NEGATIVE_RATIO", "0.5"))
 VAL_SPLIT = float(os.environ.get("OI_VAL_SPLIT", "0.2"))
 SEED = int(os.environ.get("OI_SEED", "42"))
+
+
+class PartialLabelAwareDetectionLoss(v8DetectionLoss):
+    """YOLOv8 detection loss with per-image class masking for partial labels.
+
+    Rules:
+    - If an image has labels, only classes present in those labels contribute to cls loss.
+    - If an image has no labels, all classes contribute (full negative supervision).
+    """
+
+    def _build_class_supervision_mask(self, batch: Dict[str, torch.Tensor], batch_size: int) -> torch.Tensor:
+        # Default to full supervision. We only restrict rows for images that have at least one label.
+        mask = torch.ones((batch_size, self.nc), device=self.device, dtype=torch.bool)
+        cls = batch.get("cls")
+        batch_idx = batch.get("batch_idx")
+        if cls is None or batch_idx is None or cls.numel() == 0:
+            return mask
+
+        image_ids = batch_idx.view(-1).long().to(self.device)
+        class_ids = cls.view(-1).long().to(self.device)
+        valid = (image_ids >= 0) & (image_ids < batch_size) & (class_ids >= 0) & (class_ids < self.nc)
+        if valid.any():
+            valid_image_ids = image_ids[valid]
+            # Images with labels are constrained to labeled classes only.
+            mask[valid_image_ids] = False
+            mask[valid_image_ids, class_ids[valid]] = True
+        return mask
+
+    def get_assigned_targets_and_loss(self, preds: Dict[str, torch.Tensor], batch: Dict[str, Any]) -> tuple:
+        """Compute detection losses while masking non-supervised classes per image."""
+        loss = torch.zeros(3, device=self.device)  # box, cls, dfl
+        pred_distri, pred_scores = (
+            preds["boxes"].permute(0, 2, 1).contiguous(),
+            preds["scores"].permute(0, 2, 1).contiguous(),
+        )
+        anchor_points, stride_tensor = make_anchors(preds["feats"], self.stride, 0.5)
+
+        dtype = pred_scores.dtype
+        batch_size = pred_scores.shape[0]
+        imgsz = torch.tensor(preds["feats"][0].shape[2:], device=self.device, dtype=dtype) * self.stride[0]
+
+        # Targets
+        targets = torch.cat((batch["batch_idx"].view(-1, 1), batch["cls"].view(-1, 1), batch["bboxes"]), 1)
+        targets = self.preprocess(targets.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
+        gt_labels, gt_bboxes = targets.split((1, 4), 2)  # cls, xyxy
+        mask_gt = gt_bboxes.sum(2, keepdim=True).gt_(0.0)
+
+        # Pboxes
+        pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
+
+        _, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
+            pred_scores.detach().sigmoid(),
+            (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
+            anchor_points * stride_tensor,
+            gt_labels,
+            gt_bboxes,
+            mask_gt,
+        )
+
+        # Image-level class supervision mask: classes absent from labels are ignored for cls loss.
+        class_supervision_mask = self._build_class_supervision_mask(batch, batch_size).to(dtype)
+        class_supervision_mask = class_supervision_mask.unsqueeze(1)  # (B, 1, C)
+
+        target_scores = target_scores * class_supervision_mask
+        target_scores_sum = max(target_scores.sum(), 1)
+
+        # Cls loss (masked): zero out channels for classes not labeled in each image.
+        cls_loss = self.bce(pred_scores, target_scores.to(dtype))
+        loss[1] = (cls_loss * class_supervision_mask).sum() / target_scores_sum
+
+        # Bbox loss
+        if fg_mask.sum():
+            loss[0], loss[2] = self.bbox_loss(
+                pred_distri,
+                pred_bboxes,
+                anchor_points,
+                target_bboxes / stride_tensor,
+                target_scores,
+                target_scores_sum,
+                fg_mask,
+                imgsz,
+                stride_tensor,
+            )
+
+        loss[0] *= self.hyp.box  # box gain
+        loss[1] *= self.hyp.cls  # cls gain
+        loss[2] *= self.hyp.dfl  # dfl gain
+        return (
+            (fg_mask, target_gt_idx, target_bboxes, anchor_points, stride_tensor),
+            loss,
+            loss.detach(),
+        )  # loss(box, cls, dfl)
+
+
+def _enable_partial_label_loss_for_detection() -> None:
+    """Patch Ultralytics detection criterion to use partial-label-aware class masking."""
+
+    def _patched_init_criterion(self):
+        if getattr(self, "end2end", False):
+            return E2ELoss(self, loss_fn=PartialLabelAwareDetectionLoss)
+        return PartialLabelAwareDetectionLoss(self)
+
+    DetectionModel.init_criterion = _patched_init_criterion
 
 
 def _print_openimages_hint() -> None:
@@ -253,7 +359,7 @@ def main(dst_root: Optional[Path] = None) -> None:
     merged_yaml = build_openimages_yolo_dataset(dst_root)
     print(f"Data YAML: {merged_yaml}")
     overrides = load_train_overrides(TRAIN_CFG_PATH)
-    model_name = "yolov8m.pt"
+    model_name = "yolov8n.pt"
     model_path = Path(model_name)
     if not model_path.is_absolute():
         model_path = Path(MODELS_DIR) / model_name
@@ -264,6 +370,7 @@ def main(dst_root: Optional[Path] = None) -> None:
         model_path = Path(model_name)
     # Train YOLOv8
     print(f"Starting YOLOv8 fine-tuning from {model_path}...")
+    _enable_partial_label_loss_for_detection()
     model = YOLO(str(model_path))
     
     # Ensure a reasonable default if no cfg
